@@ -1,7 +1,9 @@
 import tkinter as tk
+from heapq import merge
 from tkinter import ttk as ttk
 from tkinter import messagebox
 import queue
+from typing import Union
 from download import Download, YouTube
 from urllib.parse import urlparse
 import threading
@@ -274,16 +276,16 @@ class Gui(tk.Tk):
 
         self.after(1000, self.check_thread_status)
 
-    def get_video_subtitles_and_metadata(self):
-        download = Download(self)
-        if download.playlist:
+    def get_video_subtitles_and_metadata(self, gui_settings: dict[str, Union[str, int, bool]]):
+        url = gui_settings["url"]
+        if Download.is_playlist():
             self.combobox_playlist_index.configure(state="readonly")
-            playlist = download.initialize_playlist_instance(download.url)
+            playlist = Download.initialize_playlist_instance(url)
             urls = playlist.video_urls
         else:
             self.combobox_playlist_index.set("Bitte auswählen")
             self.combobox_playlist_index.configure(state="disabled")
-            urls = [download.url]
+            urls = [url]
 
         self.list_caption_available.clear()
         self.list_caption_available_for_listbox.clear()
@@ -299,7 +301,7 @@ class Gui(tk.Tk):
         self.data_queue.put(("metadata_list_for_listbox", self.metadata_list_for_listbox))
 
         for counter, url in enumerate(urls, start=1):
-            yt = download.initialize_youtube_instance(url, return_error=True)
+            yt = Download.initialize_youtube_instance(url, return_error=True)
             if not isinstance(yt, YouTube):
                 self.metadata_list_for_listbox.append(f"{counter}: {yt}")
                 self.data_queue.put(("metadata_list_for_listbox", self.metadata_list_for_listbox))
@@ -309,15 +311,19 @@ class Gui(tk.Tk):
             self.get_metadata(yt, counter)
 
     def check_url(self):
-        parsed_url = urlparse(self.stringVar_url.get())
+        url = self.stringVar_url.get()
+        parsed_url = urlparse(url)
         if parsed_url.hostname == "www.youtube.com":
-            download = Download(self)
-            if download.playlist:
-                yt = download.initialize_playlist_instance(download.url)
+            if Download.is_playlist(url):
+                yt = Download.initialize_playlist_instance(url)
             else:
-                yt = download.initialize_youtube_instance(download.url)
+                yt = Download.initialize_youtube_instance(url)
             if yt is not None:
-                get_video_subtitles_and_metadata_thread = threading.Thread(target=self.get_video_subtitles_and_metadata, name="get_video_subtitles_and_metadata")
+                get_video_subtitles_and_metadata_thread = threading.Thread(
+                    target=self.get_video_subtitles_and_metadata,
+                    name="get_video_subtitles_and_metadata",
+                    args=(self.get_selected_gui_settings(),)
+                )
                 get_video_subtitles_and_metadata_thread.start()
                 self.threads.append(get_video_subtitles_and_metadata_thread)
                 return True
@@ -341,42 +347,109 @@ class Gui(tk.Tk):
                 self.list_caption_available.append([caption.name, caption.code])
 
     def wrapper_download_and_process_media(self):
-        download_process_media_thread = threading.Thread(target=self.download_and_process_media, name="download_and_process_media")
+        download_process_media_thread = threading.Thread(
+            target=self.download_and_process_media,
+            name="download_and_process_media",
+            args=(self.get_selected_gui_settings(),)
+        )
         download_process_media_thread.start()
         self.threads.append(download_process_media_thread)
 
-    def download_and_process_media(self):
-        download = Download(self)
-        if download.playlist:
-            download.pl = download.initialize_playlist_instance(download.url)
-            if download.pl is not None:
-                urls = download.pl.video_urls
+    def download_and_process_video(self, gui_settings: dict[str, Union[str, bool]]):
+        selected_res = gui_settings["selected_res"]
+        url = gui_settings["url"]
+        selected_format = gui_settings["selected_format"]
+        selected_subs = gui_settings["selected_subs"]
+        yt = Download.initialize_youtube_instance(url)
+        if isinstance(yt, YouTube):
+            download_instance = Download()
+            download_instance.determine_download_format(selected_format)
+            stream_available = download_instance.check_for_stream_availability(selected_format, yt)
+            if stream_available:
+                download_instance.generate_output_file_name(selected_format)
+                if download_instance.audio_stream and download_instance.video_stream:
+                    download_instance.download_audio(yt)
+                    download_instance.download_video(yt, selected_res)
+                    output_file = PostProcessing.ffmpeg_merge_streams(
+                        download_instance.audio_path,
+                        download_instance.video_path,
+                        download_instance.output_file_name
+                    )
+                    if download_instance.needs_conversion:
+                        input_file = output_file
+                        output_file = PostProcessing.convert_file(
+                            input_file,
+                            download_instance.output_file_name
+                        )
+                    if selected_subs == "Mit Untertitel":
+                        srt_files, downloaded_subs = download_instance.download_subs()
+                        if srt_files is not None:
+                            input_file = output_file
+                            output_file = PostProcessing.embed_subs(
+                                input_file,
+                                srt_files,
+                                downloaded_subs,
+                                selected_format
+                            )
+                else:
+                    download_instance.download_audio(yt)
+                    if download_instance.needs_conversion:
+                        converted_file = PostProcessing.convert_file(
+                            download_instance.audio_path,
+                            download_instance.output_file_name
+                        )
+                    else:
+                        extracted_audio = PostProcessing.extract_audio(
+                            download_instance.audio_path,
+                            download_instance.output_file_name
+                        )
+
+
+
+    def download_and_process_media(self, gui_settings: dict[str, Union[str, bool]]):
+        url = gui_settings["url"]
+        selected_format = gui_settings["selected_format"]
+        selected_res = gui_settings["selected_res"]
+        if Download.is_playlist(url):
+            pl = Download.initialize_playlist_instance(url)
+            if pl is not None:
+                urls = pl.video_urls
                 for index, url in enumerate(urls):
-                    print(f"Video {index + 1} of {download.pl.length}")
-                    download.yt = download.initialize_youtube_instance(url)
-                    if download.yt is None:
+                    print(f"Video {index + 1} of {pl.length}")
+                    yt = Download.initialize_youtube_instance(url)
+                    if yt is None:
                         print("-----------------------------------------------------------------------------------")
                         continue
-                    download.determine_download_format()
-                    stream_available = download.check_for_stream_availability()
+                    download_instance = Download(gui_instance=self)
+                    download_instance.determine_download_format(selected_format)
+                    stream_available = download_instance.check_for_stream_availability(selected_format,yt)
                     if stream_available:
-                        download.fetch_video_and_audio()
-                        video = PostProcessing(download, self)
+                        if download_instance.audio_stream and download_instance.video_stream:
+                            download_instance.download_audio(yt)
+                            download_instance.download_video(yt, selected_res)
+                        else:
+                            download_instance.download_audio(yt)
+                        video = PostProcessing(download_instance, self)
                         video.process_download(index)
                         print("-----------------------------------------------------------------------------------")
                     else:
                         continue
         else:
-            for index, url in enumerate([download.url]):
-                download.yt = download.initialize_youtube_instance(url)
-                if download.yt is None:
+            for index, url in enumerate([url]):
+                yt = Download.initialize_youtube_instance(url)
+                if yt is None:
                     print("-----------------------------------------------------------------------------------")
                     continue
-                download.determine_download_format()
-                stream_available = download.check_for_stream_availability()
+                download_instance = Download(gui_instance=self)
+                download_instance.determine_download_format(selected_format)
+                stream_available = download_instance.check_for_stream_availability(selected_format, yt)
                 if stream_available:
-                    download.fetch_video_and_audio()
-                    video = PostProcessing(download, self)
+                    if download_instance.audio_stream and download_instance.video_stream:
+                        download_instance.download_audio(yt)
+                        download_instance.download_video(yt, selected_res)
+                    else:
+                        download_instance.download_audio(yt)
+                    video = PostProcessing(download_instance, self)
                     video.process_download(index)
                     print("-----------------------------------------------------------------------------------")
                 else:
@@ -414,14 +487,6 @@ class Gui(tk.Tk):
                         f"{metadata[3]}"
                     )
                 self.stringVar_metadata.set(self.metadata_list_for_listbox)
-
-
-
-
-
-
-
-
 
     def show_metadata(self, event=None):
         selected_indices = self.listbox_metadata.curselection()
@@ -462,3 +527,14 @@ class Gui(tk.Tk):
         self.list_caption_selected_for_listbox.pop(selected_index[0])
         self.stringVar_caption_selected.set(self.list_caption_selected_for_listbox)
         self.list_caption_selected.pop(selected_index[0])
+
+    def get_selected_gui_settings(self):
+        gui_settings = {
+            "url": self.stringVar_url.get(),
+            "selected_format": self.combobox_format.get(),
+            "selected_res": self.combobox_res.get(),
+            "selected_subs": self.combobox_subtitle.get(),
+            "selected_thumbnail": self.combobox_thumbnail.get(),
+            "use_OAuth": self.BooleanVar_OAuth.get()
+        }
+        return gui_settings
