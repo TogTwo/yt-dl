@@ -7,36 +7,7 @@ from mutagen.flac import Picture
 import base64
 import mimetypes
 
-
 class PostProcessing:
-    def process_download(self, index):
-
-
-        title = self.gui.metadata_list[index][0]
-        artist = self.gui.metadata_list[index][1]
-        album = self.gui.metadata_list[index][2]
-        genre = self.gui.metadata_list[index][3]
-        track_number = None
-        playlist_index = index + 1
-
-        if self.download.selected_playlist_index == "Titelnummer":
-            track_number = playlist_index
-        elif self.download.selected_playlist_index == "Dateiname":
-            output_file_whit_index = str(playlist_index) + " " + output_file
-            os.rename(output_file, output_file_whit_index)
-            output_file = output_file_whit_index
-        elif self.download.selected_playlist_index in ["Dateiname & Titelnummer"]:
-            track_number = playlist_index
-            output_file_whit_index = str(playlist_index) + " " + output_file
-            os.rename(output_file, output_file_whit_index)
-            output_file = output_file_whit_index
-
-        self.embed_metadata(output_file, title, artist, album, genre, track_number)
-
-        if self.download.selected_thumbnail == "Mit Thumbnail":
-            cover_file = self.download.download_thumbnail()
-            if cover_file:
-                self.embed_thumbnail(output_file, cover_file)
 
     @staticmethod
     def convert_file(input_file, output_file_name):
@@ -66,7 +37,7 @@ class PostProcessing:
                 output_file
             ]
             subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print("Audio wurde erfolgreich von {} extrahiert".format(input_file))
+            print(f"Audio wurde erfolgreich von {input_file} extrahiert")
             return output_file
         except FileNotFoundError:
             print(f"Fehler: Die Datei {input_file} wurde nicht gefunden.")
@@ -109,7 +80,7 @@ class PostProcessing:
                 print(f"Die Datei {file} wurde nicht gefunden.")
 
     @staticmethod
-    def embed_thumbnail(self, input_file, cover_file, selected_format):
+    def embed_thumbnail(input_file, cover_file, selected_format):
         if os.path.exists(cover_file):
             if selected_format == "mp3":
                 try:
@@ -189,7 +160,7 @@ class PostProcessing:
             PostProcessing.delete_files(cover_file)
 
     @staticmethod
-    def embed_metadata(self, input_file, selected_format, title=None, artist=None, album=None, genre=None, track_number=None):
+    def embed_metadata(input_file, selected_format, title=None, artist=None, album=None, genre=None, track_number=None):
         try:
             if selected_format == "opus":
                 audio = OggOpus(input_file)
@@ -264,6 +235,7 @@ class PostProcessing:
             print(f"Ein unbekannter Fehler ist aufgetreten: {e}")
         else:
             print("Metadaten erfolgreich eingebettet")
+            return input_file
 
     @staticmethod
     def embed_subs(input_file, srt_files, downloaded_subs, selected_format):
