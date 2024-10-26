@@ -28,10 +28,10 @@ class Download:
                     f"Soll in das gewünsche Format konvertiert werden?",
         )
         if response == "yes":
-            if self.format_for_download == "webm":
+            if self.format_for_download[0] == "webm":
                 self.format_for_download = ["mp4"]
                 self.needs_conversion = True
-            elif self.format_for_download == "mp4":
+            elif self.format_for_download[0] == "mp4":
                 self.format_for_download = ["webm"]
                 self.needs_conversion = True
             return True
@@ -120,13 +120,10 @@ class Download:
             self.needs_conversion = False
 
     def generate_output_file_name(self, selected_format: str):
-        if selected_format in ["opus", "m4a", "mp3", "mkv"]: # The file extension does not need to be adjusted for MP4 and WebM.
-            self.output_file_name = Path(self.audio_stream.default_filename).with_suffix("." + selected_format)
+        if selected_format in ["opus", "m4a", "mp3", "mkv"] or self.needs_conversion: # The file extension does not need to be adjusted for MP4 and WebM.
+            self.output_file_name = str(Path(self.audio_stream.default_filename).with_suffix("." + selected_format))
         else:
-            if self.needs_conversion:
-                self.output_file_name = Path(self.audio_stream.default_filename).with_suffix("." + selected_format)
-            else:
-                self.output_file_name = self.audio_stream.default_filename
+            self.output_file_name = self.audio_stream.default_filename
 
         self.output_file_name = re.sub(r'[<>:"/\\|?*]', '', self.output_file_name)
         self.output_file_name = self.output_file_name.strip()
@@ -204,6 +201,7 @@ class Download:
                 self.video_stream = (
                     yt.streams
                     .filter(file_extension=possible_format, only_video=True, res=selected_res, adaptive=True)
+                    .first()
                 )
                 # video_stream = None
                 if self.video_stream:
@@ -218,10 +216,11 @@ class Download:
                     if self.video_stream:
                         return True
 
-                if attempt == len(possible_format) and not format_changed:
+                if attempt == len(self.format_for_download) and not format_changed:
                     if self.change_download_format(yt):
                         format_changed = True
                     else:
+                        print(f"there are no suitable streams available for the video {yt.title}")
                         return False
 
             attempt_counter += 1
@@ -240,10 +239,11 @@ class Download:
                 if self.audio_stream:
                     return True
 
-                if attempt == len(possible_format) and not format_changed:
+                if attempt == len(self.format_for_download) and not format_changed:
                     if self.change_download_format(yt):
                         format_changed = True
                     else:
+                        print(f"there are no suitable streams available for the video {yt.title}")
                         return False
 
             attempt_counter += 1

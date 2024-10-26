@@ -369,28 +369,30 @@ class Gui(tk.Tk):
         download_instance.determine_download_format(selected_format)
         stream_available = download_instance.check_stream_availability(yt, selected_res, selected_format)
 
-        # if (
-        #     download_instance.audio_stream
-        #     and (download_instance.video_stream or selected_format in ["opus", "m4a", "mp3"])
-        # ):
-
         if stream_available:
             download_instance.generate_output_file_name(selected_format)
 
             if download_instance.audio_stream and download_instance.video_stream:
                 download_instance.download_audio()
                 download_instance.download_video()
-                output_file = PostProcessing.ffmpeg_merge_streams(
-                    download_instance.audio_path,
-                    download_instance.video_path,
-                    download_instance.output_file_name
-                )
                 if download_instance.needs_conversion:
+                    output_file = PostProcessing.ffmpeg_merge_streams(
+                        download_instance.audio_path,
+                        download_instance.video_path,
+                        download_instance.video_stream.default_filename
+                    )
                     input_file = output_file
                     output_file = PostProcessing.convert_file(
                         input_file,
                         download_instance.output_file_name
                     )
+                else:
+                    output_file = PostProcessing.ffmpeg_merge_streams(
+                        download_instance.audio_path,
+                        download_instance.video_path,
+                        download_instance.output_file_name
+                    )
+
                 if selected_subs == "Mit Untertitel":
                     srt_files, downloaded_subs = download_instance.download_subs(list_caption_selected, yt)
                     if srt_files is not None:
