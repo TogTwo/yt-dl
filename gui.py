@@ -279,6 +279,7 @@ class Gui(tk.Tk):
 
     def get_video_subtitles_and_metadata(self, gui_settings: dict[str, Union[str, int, bool]]):
         url = gui_settings["url"]
+        use_oauth = gui_settings["use_oauth"]
         if Download.is_playlist(url):
             self.combobox_playlist_index.configure(state="readonly")
             playlist = Download.initialize_playlist_instance(url)
@@ -302,7 +303,7 @@ class Gui(tk.Tk):
         self.data_queue.put(("metadata_list_for_listbox", self.metadata_list_for_listbox))
 
         for counter, url in enumerate(urls, start=1):
-            yt = Download.initialize_youtube_instance(url, return_error=True)
+            yt = Download.initialize_youtube_instance(url, return_error=True, use_oauth=use_oauth)
             if not isinstance(yt, YouTube):
                 self.metadata_list_for_listbox.append(f"{counter}: {yt}")
                 self.data_queue.put(("metadata_list_for_listbox", self.metadata_list_for_listbox))
@@ -313,12 +314,13 @@ class Gui(tk.Tk):
 
     def check_url(self):
         url = self.stringVar_url.get()
+        use_oauth = self.BooleanVar_OAuth.get()
         parsed_url = urlparse(url)
         if parsed_url.hostname == "www.youtube.com":
             if Download.is_playlist(url):
                 yt = Download.initialize_playlist_instance(url)
             else:
-                yt = Download.initialize_youtube_instance(url)
+                yt = Download.initialize_youtube_instance(url, use_oauth=use_oauth)
             if yt is not None:
                 get_video_subtitles_and_metadata_thread = threading.Thread(
                     target=self.get_video_subtitles_and_metadata,
@@ -445,6 +447,7 @@ class Gui(tk.Tk):
 
     def download_media_files(self, gui_settings: dict[str, Union[str, bool]]):
         url = gui_settings["url"]
+        use_oauth = gui_settings["use_oauth"]
         urls = [url]
         skipp_download = False
         if Download.is_playlist(url):
@@ -458,7 +461,7 @@ class Gui(tk.Tk):
             for index, url in enumerate(urls):
                 print("-" * 80)
                 print(f"Video {index + 1} of {len(urls)}")
-                yt = Download.initialize_youtube_instance(url)
+                yt = Download.initialize_youtube_instance(url, use_oauth=use_oauth)
                 if isinstance(yt, YouTube):
                     self.download_and_process_video(yt, gui_settings, index)
                 else:
@@ -544,7 +547,7 @@ class Gui(tk.Tk):
             "selected_res": self.combobox_res.get(),
             "selected_subs": self.combobox_subtitle.get(),
             "selected_thumbnail": self.combobox_thumbnail.get(),
-            "use_OAuth": self.BooleanVar_OAuth.get(),
+            "use_oauth": self.BooleanVar_OAuth.get(),
             "selected_playlist_index": self.combobox_playlist_index.get(),
             "list_caption_selected": self.list_caption_selected
         }

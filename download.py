@@ -24,8 +24,8 @@ class Download:
     def change_download_format(self, yt: YouTube):
         response = messagebox.askquestion(
             title="Info",
-            message=f"Für das Video {yt.title} sind keine passenden Streams für das ausgewählte Format verfügbar.\n"
-                    f"Soll in das gewünsche Format konvertiert werden?",
+            message=f"There are no suitable streams available for the selected format for video {yt.title}.\n"
+                    f"Should it be converted to the desired format?",
         )
         if response == "yes":
             if self.format_for_download[0] == "webm":
@@ -63,12 +63,12 @@ class Download:
     @staticmethod
     def initialize_youtube_instance(
             url,
-            gui_settings: dict[str, Union[str, bool]] = None,
+            use_oauth = None,
             return_error: bool = False,
     ) -> Optional[Union[YouTube, str]]:
         try:
-            use_oauth = gui_settings["use_OAuth"] if gui_settings else None
-            yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=False)
+            # use_oauth = gui_settings["use_OAuth"] if gui_settings else None
+            yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=True)
             yt.streams
         except RegexMatchError:
             error_message = "Regex pattern did not return any matches."
@@ -96,7 +96,6 @@ class Download:
         try:
             pl = Playlist(url)
             if len(pl) == 0:
-                #print("Private Playlist können nicht heruntergeladen werden.")
                 print("Private playlists cannot be downloaded")
                 return None
         except RegexMatchError:
@@ -136,13 +135,13 @@ class Download:
         if response.status_code == 200:
             with open(thumbnail_file_name, 'wb') as f:
                 f.write(response.content)
-            print("Thumbnail erfolgreich heruntergeladen")
+            print("Thumbnail downloaded successfully")
             cover_file = self.get_file_path(thumbnail_file_name)
             return cover_file
         elif response.status_code == 404:
-            print("Maxres Thumbnail nicht verfügbar, alternativer Download wird versucht.")
+            print("Maxres thumbnail not available, trying alternative download")
         else:
-            print(f"Fehler beim Herunterladen des maxres Thumbnails (Statuscode {response.status_code})")
+            print(f"Error downloading maxres thumbnails status code {response.status_code})")
 
         for attempt in range(1, 6):
             thumbnail_url = yt.thumbnail_url
@@ -150,12 +149,12 @@ class Download:
             urllib.request.urlretrieve(thumbnail_url, thumbnail_file_name)
             if os.path.isfile(thumbnail_file_name) and os.path.getsize(thumbnail_file_name) > 0:
                 cover_file = self.get_file_path(thumbnail_file_name)
-                print("Thumbnail erfolgreich heruntergeladen")
+                print("Thumbnail downloaded successfully")
                 return cover_file
             else:
-                print(f"alternativer Download fehlgeschlagen (Versuch {attempt} von 5)")
+                print(f"alternative download failed (attempt {attempt} of 5)")
 
-        print("Beide Download-Versuche sind fehlgeschlagen.")
+        print("Both download attempts failed")
         return None
 
     @staticmethod
@@ -179,18 +178,18 @@ class Download:
                             downloaded_subs.append(entry)
                             break
                 except Exception as e:
-                    print(f"Ein unbekannter Fehler ist aufgetreten: {e}")
+                    print(f"An unknown error has occurred: {e}")
             if srt_files:
-                print("Untertitel erfolgreich heruntergeladen")
+                print("Subtitles downloaded successfully")
         return srt_files, downloaded_subs
 
     def download_audio(self):
         self.audio_path = self.audio_stream.download(filename_prefix='audio_')
-        print("Audio erfolgreich heruntergeladen")
+        print("Audio downloaded successfully")
 
     def download_video(self):
         self.video_path = self.video_stream.download(filename_prefix='video_')
-        print("Video erfolgreich heruntergeladen")
+        print("Video downloaded successfully")
 
     def get_video_stream_availability(self, yt: YouTube, selected_res: str):
         attempt_counter = 0

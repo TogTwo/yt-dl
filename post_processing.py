@@ -19,10 +19,10 @@ class PostProcessing:
                 output_file_name
             ]
             subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(f"Datei {input_file} wurde erfolgreich konvertiert")
+            print(f"File {input_file} was successfully converted")
             return output_file_name
         except Exception as e:
-            print(f"Fehler beim Konvertieren {e}")
+            print(f"Error converting {e}")
         finally:
             PostProcessing.delete_files(input_file)
 
@@ -37,14 +37,14 @@ class PostProcessing:
                 output_file
             ]
             subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(f"Audio wurde erfolgreich von {input_file} extrahiert")
+            print(f"Audio was successfully extracted from {input_file}")
             return output_file
         except FileNotFoundError:
-            print(f"Fehler: Die Datei {input_file} wurde nicht gefunden.")
+            print(f"The file {input_file} was not found")
         except subprocess.CalledProcessError as e:
-            print(f"Fehler beim Ausführen von FFmpeg: {e}")
+            print(f"Error running FFmpeg: {e}")
         except Exception as e:
-            print(f"Ein unbekannter Fehler ist aufgetreten: {e}")
+            print(f"An unknown error has occurred: {e}")
         finally:
             PostProcessing.delete_files(input_file)
 
@@ -60,14 +60,14 @@ class PostProcessing:
                 output_file
             ]
             subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(f"Video und Audio wurden gemergt.")
+            print(f"Video and audio were merged")
             return output_file
         except FileNotFoundError:
-            print(f"Fehler: Eine oder beide Dateien ({stream1}, {stream2}) wurden nicht gefunden.")
+            print(f"One or both files ({stream1}, {stream2}) were not found")
         except subprocess.CalledProcessError as e:
-            print(f"Fehler beim Ausführen von FFmpeg: {e}")
+            print(f"Error running Ffmpeg: {e}")
         except Exception as e:
-            print(f"Ein unbekannter Fehler ist aufgetreten: {e}")
+            print(f"An unknown error has occurred: {e}")
         finally:
             PostProcessing.delete_files(stream1, stream2)
 
@@ -77,7 +77,7 @@ class PostProcessing:
             try:
                 os.remove(file)
             except FileNotFoundError:
-                print(f"Die Datei {file} wurde nicht gefunden.")
+                print(f"The file {file} was not found")
 
     @staticmethod
     def embed_thumbnail(input_file, cover_file, selected_format):
@@ -100,9 +100,9 @@ class PostProcessing:
                     ]
                     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     os.replace(temp_output_file, input_file)
-                    print("Thumbnail erlogreich eingebettet")
+                    print("Thumbnail successfully embedded")
                 except Exception as e:
-                    print(f"Fehler bei der Einbettung für MP3: {e}")
+                    print(f"Error embedding for MP3: {e}")
             elif selected_format == "opus":
                 try:
                     opus = OggOpus(input_file)
@@ -119,9 +119,9 @@ class PostProcessing:
 
                     opus['METADATA_BLOCK_PICTURE'] = base64.b64encode(pic.write()).decode('ascii')
                     opus.save()
-                    print("Thumbnail erlogreich eingebettet")
+                    print("Thumbnail successfully embedded")
                 except Exception as e:
-                    print(f"Fehler bei der Einbettung für Opus: {e}")
+                    print(f"Error embedding for Opus: {e}")
             elif selected_format in ["m4a", "mp4"]:
                 # try:
                 #     mp4 = MP4(input_file)
@@ -143,9 +143,9 @@ class PostProcessing:
                     ]
                     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     os.replace(temp_output_file, input_file)
-                    print("Thumbnail erlogreich eingebettet")
+                    print("Thumbnail successfully embedded")
                 except Exception as e:
-                    print(f"AtomicParsley Fehler: {e}")
+                    print(f"An unknown error has occurred: {e}")
             elif selected_format in ["mkv", "webm"]:
                 try:
                     command = [
@@ -154,9 +154,9 @@ class PostProcessing:
                         input_file
                     ]
                     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    print("Thumbnail erlogreich eingebettet")
+                    print("Thumbnail successfully embedded")
                 except Exception as e:
-                    print(f"Fehler bei der Einbettung für MKV/WebM: {e}")
+                    print(f"Error embedding for MKV/WebM: {e}")
             PostProcessing.delete_files(cover_file)
 
     @staticmethod
@@ -228,13 +228,13 @@ class PostProcessing:
                     ]
                     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except subprocess.CalledProcessError as e:
-            print(f"Fehler beim Ausführen des Kommandos: {e}")
+            print(f"Error executing command: {e}")
         except OSError as e:
-            print(f"Fehler beim Dateizugriff: {e}")
+            print(f"File access error {e}")
         except Exception as e:
-            print(f"Ein unbekannter Fehler ist aufgetreten: {e}")
+            print(f"An unknown error has occurred: {e}")
         else:
-            print("Metadaten erfolgreich eingebettet")
+            print("Metadata successfully embedded")
             return input_file
 
     @staticmethod
@@ -277,15 +277,15 @@ class PostProcessing:
                 os.replace(temp_output_file, input_file)
 
         except FileNotFoundError as e:
-            print(f"Fehler: Eine oder mehrere Dateien wurden nicht gefunden: {e}")
+            print(f"One or more files were not found: {e}")
         except subprocess.CalledProcessError as e:
-            print(f"Fehler: Beim Ausführen von externem Programm ist ein Fehler aufgetreten: {e}")
+            print(f"Error executing command: {e}")
         except OSError as e:
-            print(f"Fehler: Beim Zugriff auf das Dateisystem ist ein Fehler aufgetreten: {e}")
+            print(f"File access error: {e}")
         except Exception as e:
-            print(f"Fehler: Ein unbekannter Fehler ist aufgetreten: {e}")
+            print(f"An unknown error has occurred: {e}")
         else:
-            print("Untertitel erfolgreich eingebettet")
+            print("Subtitles successfully embedded")
             return input_file
         finally:
             PostProcessing.delete_files(*srt_files)
