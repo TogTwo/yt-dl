@@ -17,3 +17,4 @@ The project relies on several external tools to enable all its features:
 - **ffmpeg** – used extensively for converting downloaded media files to different formats.
 - **mkvmerge** – required for embedding subtitles in MKV and WebM files.
 - **mkvpropedit** – used for editing MKV file metadata and thumbnails.
+- **AtomicParsley** – used for embedding thumbnails in MP4 files.
