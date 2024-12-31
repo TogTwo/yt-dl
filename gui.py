@@ -484,9 +484,11 @@ class Gui(tk.Tk):
             self.stringVar_metadata.set(self.metadata_list_for_listbox)
 
             if self.BooleanVar_sync.get():
+                artis = self.metadata_list[self.selected_index][1]
                 album = self.metadata_list[self.selected_index][2]
                 genre = self.metadata_list[self.selected_index][3]
                 for metadata in self.metadata_list:
+                    metadata[1] = artis
                     metadata[2] = album
                     metadata[3] = genre
 

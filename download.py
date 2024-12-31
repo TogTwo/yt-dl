@@ -12,7 +12,6 @@ import re
 
 class Download:
     def __init__(self):
-        # self.gui_settings = gui_settings gui_settings: dict[str, Union[str, bool]]
         self.needs_conversion = None
         self.format_for_download = None
         self.audio_stream = None
@@ -67,7 +66,6 @@ class Download:
             return_error: bool = False,
     ) -> Optional[Union[YouTube, str]]:
         try:
-            # use_oauth = gui_settings["use_OAuth"] if gui_settings else None
             yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=True)
             yt.streams
         except RegexMatchError:
@@ -119,10 +117,7 @@ class Download:
             self.needs_conversion = False
 
     def generate_output_file_name(self, selected_format: str):
-        if selected_format in ["opus", "m4a", "mp3", "mkv"] or self.needs_conversion: # The file extension does not need to be adjusted for MP4 and WebM.
-            self.output_file_name = str(Path(self.audio_stream.default_filename).with_suffix("." + selected_format))
-        else:
-            self.output_file_name = self.audio_stream.default_filename
+        self.output_file_name = str(Path(self.audio_stream.default_filename).with_suffix("." + selected_format))
 
         self.output_file_name = re.sub(r'[<>:"/\\|?*]', '', self.output_file_name)
         self.output_file_name = self.output_file_name.strip()
@@ -202,7 +197,6 @@ class Download:
                     .filter(file_extension=possible_format, only_video=True, res=selected_res, adaptive=True)
                     .first()
                 )
-                # video_stream = None
                 if self.video_stream:
                     return True
                 else:
@@ -211,7 +205,6 @@ class Download:
                         .filter(file_extension=possible_format, only_video=True, adaptive=True)
                         .order_by("resolution").desc().first()
                     )
-                    # video_stream = None
                     if self.video_stream:
                         return True
 
