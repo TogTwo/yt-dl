@@ -67,8 +67,7 @@ class Download:
             return_error: bool = False,
     ) -> Optional[Union[YouTube, str]]:
         try:
-            print(os.getcwd())
-            yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=True, use_po_token=True, po_token_verifier=generator.po_token_verifier)
+            yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=False, use_po_token=True, po_token_verifier=generator.po_token_verifier)
             yt.streams
         except RegexMatchError:
             error_message = "Regex pattern did not return any matches."

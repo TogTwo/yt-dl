@@ -1,8 +1,6 @@
 import json
 import subprocess
 from typing import Tuple, Optional
-from pytubefix import YouTube
-
 
 def cmd(command, check=True, shell=True, capture_output=True, text=True):
     """
@@ -32,11 +30,3 @@ def po_token_verifier() -> Optional[Tuple[str, str]]:
     token_object = generate_youtube_token()
     return token_object["visitorData"], token_object["poToken"]
 
-def download():
-    yt = YouTube(
-        url="https://www.youtube.com/watch?v=7GiDgP4F1j8",
-        use_po_token= True,
-        po_token_verifier=po_token_verifier,
-    )
-    test = yt.streams
-    print(test)
