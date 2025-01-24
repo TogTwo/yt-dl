@@ -9,6 +9,7 @@ from pytubefix.exceptions import *
 import os
 from typing import Optional
 import re
+import generator
 
 class Download:
     def __init__(self):
@@ -66,7 +67,8 @@ class Download:
             return_error: bool = False,
     ) -> Optional[Union[YouTube, str]]:
         try:
-            yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=True)
+            print(os.getcwd())
+            yt = YouTube(url, use_oauth=use_oauth, allow_oauth_cache=True, use_po_token=True, po_token_verifier=generator.po_token_verifier)
             yt.streams
         except RegexMatchError:
             error_message = "Regex pattern did not return any matches."

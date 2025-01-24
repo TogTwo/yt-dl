@@ -1,6 +1,6 @@
 import json
 import subprocess
-from typing import Tuple, Union
+from typing import Tuple, Optional
 from pytubefix import YouTube
 
 
@@ -22,13 +22,13 @@ def cmd(command, check=True, shell=True, capture_output=True, text=True):
 
 def generate_youtube_token() -> dict:
     print("Generating YouTube token")
-    result = cmd("node youtube-token-generator.js")
+    result = cmd(".\\node-v22.13.1-win-x64\\node youtube-token-generator.js")
     data = json.loads(result.stdout)
     print(f"Result: {data}")
     return data
 
 
-def po_token_verifier() -> Union[Tuple[str, str]]:
+def po_token_verifier() -> Optional[Tuple[str, str]]:
     token_object = generate_youtube_token()
     return token_object["visitorData"], token_object["poToken"]
 
@@ -40,5 +40,3 @@ def download():
     )
     test = yt.streams
     print(test)
-
-download()

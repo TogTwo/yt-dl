@@ -166,3 +166,4 @@ cython_debug/
 /node_modules
 package-lock.json
 package.json
+/node-v22.13.1-win-x64
