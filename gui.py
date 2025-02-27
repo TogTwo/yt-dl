@@ -44,6 +44,7 @@ class Gui(tk.Tk):
 
         self.metadata_list_for_listbox = []
         self.metadata_list = []
+        self.yt_instance_list = []
 
         self.list_caption_available = []
         self.list_caption_available_for_listbox = []
@@ -298,40 +299,35 @@ class Gui(tk.Tk):
         self.metadata_list_for_listbox.clear()
         self.metadata_list.clear()
 
+        self.yt_instance_list.clear()
+
         self.data_queue.put(("list_caption_available_for_listbox", self.list_caption_available_for_listbox))
         self.data_queue.put(("list_caption_selected_for_listbox", self.list_caption_selected_for_listbox))
         self.data_queue.put(("metadata_list_for_listbox", self.metadata_list_for_listbox))
 
         for counter, url in enumerate(urls, start=1):
             yt = Download.initialize_youtube_instance(url, return_error=True, use_oauth=use_oauth)
+            self.yt_instance_list.append(yt)
             if not isinstance(yt, YouTube):
                 self.metadata_list_for_listbox.append(f"{counter}: {yt}")
                 self.data_queue.put(("metadata_list_for_listbox", self.metadata_list_for_listbox))
                 self.metadata_list.append([yt, "", "", ""])
-                continue
-            self.get_available_subs(yt)
-            self.get_metadata(yt, counter)
+            else:
+                self.get_available_subs(yt)
+                self.get_metadata(yt, counter)
 
     def check_url(self):
         url = self.stringVar_url.get()
-        use_oauth = self.BooleanVar_OAuth.get()
         parsed_url = urlparse(url)
         if parsed_url.hostname == "www.youtube.com":
-            if Download.is_playlist(url):
-                yt = Download.initialize_playlist_instance(url)
-            else:
-                yt = Download.initialize_youtube_instance(url, use_oauth=use_oauth)
-            if yt is not None:
-                get_video_subtitles_and_metadata_thread = threading.Thread(
-                    target=self.get_video_subtitles_and_metadata,
-                    name="get_video_subtitles_and_metadata",
-                    args=(self.get_selected_gui_settings(),)
-                )
-                get_video_subtitles_and_metadata_thread.start()
-                self.threads.append(get_video_subtitles_and_metadata_thread)
-                return True
-            else:
-                return False
+            get_video_subtitles_and_metadata_thread = threading.Thread(
+                target=self.get_video_subtitles_and_metadata,
+                name="get_video_subtitles_and_metadata",
+                args=(self.get_selected_gui_settings(),)
+            )
+            get_video_subtitles_and_metadata_thread.start()
+            self.threads.append(get_video_subtitles_and_metadata_thread)
+            return True
         else:
             print("Not a valid URL")
             return False
@@ -350,15 +346,18 @@ class Gui(tk.Tk):
                 self.list_caption_available.append([caption.name, caption.code])
 
     def wrapper_download_media_files(self):
-        download_process_media_thread = threading.Thread(
-            target=self.download_media_files,
-            name="download_media_files",
-            args=(self.get_selected_gui_settings(),)
-        )
-        download_process_media_thread.start()
-        self.threads.append(download_process_media_thread)
+        if self.combobox_format.get() == "Bitte auswählen":
+            messagebox.showerror(message="Bitte ein Format auswählen")
+        else:
+            download_process_media_thread = threading.Thread(
+                target=self.download_media_files,
+                name="download_media_files",
+                args=(self.get_selected_gui_settings(),)
+            )
+            download_process_media_thread.start()
+            self.threads.append(download_process_media_thread)
 
-    def download_and_process_video(self, yt: YouTube, gui_settings: dict[str, Union[str, bool]], index):
+    def download_media_files(self, gui_settings: dict[str, Union[str, bool]]):
         selected_res = gui_settings["selected_res"]
         selected_format = gui_settings["selected_format"]
         selected_subs = gui_settings["selected_subs"]
@@ -366,106 +365,92 @@ class Gui(tk.Tk):
         selected_thumbnail = gui_settings["selected_thumbnail"]
         list_caption_selected = gui_settings["list_caption_selected"]
 
+        for index, yt in enumerate(self.yt_instance_list):
+            print("-" * 80)
+            print(f"Video {index + 1} of {len(self.yt_instance_list)}")
 
-        download_instance = Download()
-        download_instance.determine_download_format(selected_format)
-        stream_available = download_instance.check_stream_availability(yt, selected_res, selected_format)
+            if isinstance(yt, YouTube):
+                download_instance = Download()
+                download_instance.determine_download_format(selected_format)
+                stream_available = download_instance.check_stream_availability(yt, selected_res, selected_format)
 
-        if stream_available:
-            download_instance.generate_output_file_name(selected_format)
+                if stream_available:
+                    download_instance.generate_output_file_name(selected_format)
 
-            if download_instance.audio_stream and download_instance.video_stream:
-                download_instance.download_audio()
-                download_instance.download_video()
-                if download_instance.needs_conversion:
-                    output_file = PostProcessing.ffmpeg_merge_streams(
-                        download_instance.audio_path,
-                        download_instance.video_path,
-                        download_instance.video_stream.default_filename
-                    )
+                    if download_instance.audio_stream and download_instance.video_stream:
+                        download_instance.download_audio()
+                        download_instance.download_video()
+                        if download_instance.needs_conversion:
+                            output_file = PostProcessing.ffmpeg_merge_streams(
+                                download_instance.audio_path,
+                                download_instance.video_path,
+                                download_instance.video_stream.default_filename
+                            )
+                            input_file = output_file
+                            output_file = PostProcessing.convert_file(
+                                input_file,
+                                download_instance.output_file_name
+                            )
+                        else:
+                            output_file = PostProcessing.ffmpeg_merge_streams(
+                                download_instance.audio_path,
+                                download_instance.video_path,
+                                download_instance.output_file_name
+                            )
+
+                        if selected_subs == "Mit Untertitel":
+                            srt_files, downloaded_subs = download_instance.download_subs(list_caption_selected, yt)
+                            if srt_files is not None:
+                                input_file = output_file
+                                output_file = PostProcessing.embed_subs(
+                                    input_file,
+                                    srt_files,
+                                    downloaded_subs,
+                                    selected_format
+                                )
+                    else:
+                        download_instance.download_audio()
+                        if download_instance.needs_conversion:
+                            output_file = PostProcessing.convert_file(
+                                download_instance.audio_path,
+                                download_instance.output_file_name
+                            )
+                        else:
+                            output_file = PostProcessing.extract_audio(
+                                download_instance.audio_path,
+                                download_instance.output_file_name
+                            )
+
+                    title = self.metadata_list[index][0]
+                    artist = self.metadata_list[index][1]
+                    album = self.metadata_list[index][2]
+                    genre = self.metadata_list[index][3]
+                    track_number = None
+
+                    if selected_playlist_index == "Titelnummer":
+                        track_number = index + 1
+                    elif selected_playlist_index == "Dateiname":
+                        output_file_whit_index = str(index + 1) + " " + output_file
+                        os.rename(output_file, output_file_whit_index)
+                        output_file = output_file_whit_index
+                    elif selected_playlist_index in ["Dateiname & Titelnummer"]:
+                        track_number = index + 1
+                        output_file_whit_index = str(track_number) + " " + output_file
+                        os.rename(output_file, output_file_whit_index)
+                        output_file = output_file_whit_index
+
                     input_file = output_file
-                    output_file = PostProcessing.convert_file(
-                        input_file,
-                        download_instance.output_file_name
-                    )
-                else:
-                    output_file = PostProcessing.ffmpeg_merge_streams(
-                        download_instance.audio_path,
-                        download_instance.video_path,
-                        download_instance.output_file_name
-                    )
+                    output_file = PostProcessing.embed_metadata(input_file, selected_format, title, artist, album,
+                                                                genre, track_number)
 
-                if selected_subs == "Mit Untertitel":
-                    srt_files, downloaded_subs = download_instance.download_subs(list_caption_selected, yt)
-                    if srt_files is not None:
-                        input_file = output_file
-                        output_file = PostProcessing.embed_subs(
-                            input_file,
-                            srt_files,
-                            downloaded_subs,
-                            selected_format
-                        )
+                    input_file = output_file
+                    if selected_thumbnail == "Mit Thumbnail":
+                        cover_file = download_instance.download_thumbnail(yt)
+                        if cover_file:
+                            PostProcessing.embed_thumbnail(input_file, cover_file, selected_format)
             else:
-                download_instance.download_audio()
-                if download_instance.needs_conversion:
-                    output_file = PostProcessing.convert_file(
-                        download_instance.audio_path,
-                        download_instance.output_file_name
-                    )
-                else:
-                    output_file = PostProcessing.extract_audio(
-                        download_instance.audio_path,
-                        download_instance.output_file_name
-                    )
-
-            title = self.metadata_list[index][0]
-            artist = self.metadata_list[index][1]
-            album = self.metadata_list[index][2]
-            genre = self.metadata_list[index][3]
-            track_number = None
-
-            if selected_playlist_index == "Titelnummer":
-                track_number = index + 1
-            elif selected_playlist_index == "Dateiname":
-                output_file_whit_index = str(index + 1) + " " + output_file
-                os.rename(output_file, output_file_whit_index)
-                output_file = output_file_whit_index
-            elif selected_playlist_index in ["Dateiname & Titelnummer"]:
-                track_number = index + 1
-                output_file_whit_index = str(track_number) + " " + output_file
-                os.rename(output_file, output_file_whit_index)
-                output_file = output_file_whit_index
-
-            input_file = output_file
-            output_file = PostProcessing.embed_metadata(input_file, selected_format, title, artist, album, genre, track_number)
-
-            input_file = output_file
-            if selected_thumbnail == "Mit Thumbnail":
-                cover_file = download_instance.download_thumbnail(yt)
-                if cover_file:
-                    PostProcessing.embed_thumbnail(input_file, cover_file, selected_format)
-
-    def download_media_files(self, gui_settings: dict[str, Union[str, bool]]):
-        url = gui_settings["url"]
-        use_oauth = gui_settings["use_oauth"]
-        urls = [url]
-        skipp_download = False
-        if Download.is_playlist(url):
-            pl = Download.initialize_playlist_instance(url)
-            if isinstance(pl, Playlist):
-                urls = pl.video_urls
-            else:
-                skipp_download = True
-
-        if skipp_download is False:
-            for index, url in enumerate(urls):
-                print("-" * 80)
-                print(f"Video {index + 1} of {len(urls)}")
-                yt = Download.initialize_youtube_instance(url, use_oauth=use_oauth)
-                if isinstance(yt, YouTube):
-                    self.download_and_process_video(yt, gui_settings, index)
-                else:
-                    continue
+                print(self.yt_instance_list[index])
+                continue
 
     def edit_metadata(self, event=None):
         if self.selected_index is not None:
